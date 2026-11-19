@@ -1,0 +1,11 @@
+{
+  "marvins-local-memory": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python scripts/pre_invocation.py",
+        "timeout": 20
+      }
+    ]
+  }
+}

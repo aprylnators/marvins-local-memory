@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "marvins-local-memory": {
+      "command": "python",
+      "args": [
+        "scripts/mcp_server.py"
+      ]
+    }
+  }
+}

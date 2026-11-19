@@ -1,0 +1,5 @@
+# Local Companion Memory Rules
+
+- **Autonomous Memory Grounding:** Whenever discussing past decisions, user preferences, project milestones, or shared context not already in active view, query the local memory stack via the `deep_recall` / `search_memory` MCP tools (or `python scripts/query_memory.py "<query>"`) instead of guessing. If no records exist, state the gap plainly.
+- **Per-Turn Memory Layer Watchdog:** If a `[MEMORY LAYER WARNING]` banner appears in your pre-invocation context, run `python scripts/query_memory.py --diagnose` (or call `memory_health`) immediately to verify and restore the warm memory daemon rather than coasting on empty recall.
+- **Mid-Chat Live State Updates:** When the user completes a milestone, changes a project phase, or shares an enduring preference or boundary, update the Bi-Temporal Property Graph immediately via `set_state` (or `python scripts/query_memory.py --set-state ... --phase ... --summary ... --next ...`) so superseded phases are cleanly retired with `active=False`.

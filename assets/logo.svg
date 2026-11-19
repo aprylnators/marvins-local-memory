@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" fill="none">
+  <!-- Safe 10% inset circular obsidian medallion with high-contrast outer ring for light & dark themes -->
+  <circle cx="128" cy="128" r="100" fill="#0B1120" stroke="#38BDF8" stroke-width="5" />
+  <circle cx="128" cy="128" r="90" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="6 6" />
+
+  <!-- Memory Lattice Hex Node Frame -->
+  <polygon points="128,60 186,94 186,162 128,196 70,162 70,94" fill="#11192E" stroke="#22D3EE" stroke-width="3.5" stroke-linejoin="round" />
+
+  <!-- Internal Associative Graph Edges -->
+  <line x1="128" y1="60" x2="128" y2="128" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="70" y1="162" x2="128" y2="128" stroke="#22D3EE" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="186" y1="162" x2="128" y2="128" stroke="#EC4899" stroke-width="2.5" stroke-linecap="round" />
+
+  <!-- Twin Star Cores + Central Warm Anchor -->
+  <circle cx="128" cy="128" r="16" fill="#F59E0B" stroke="#FFFBEB" stroke-width="2.5" />
+  <circle cx="128" cy="128" r="6" fill="#FFFFFF" />
+
+  <circle cx="128" cy="60" r="8" fill="#22D3EE" stroke="#0B1120" stroke-width="2" />
+  <circle cx="186" cy="94" r="7" fill="#EC4899" stroke="#0B1120" stroke-width="2" />
+  <circle cx="70" cy="94" r="7" fill="#38BDF8" stroke="#0B1120" stroke-width="2" />
+  <circle cx="70" cy="162" r="8" fill="#22D3EE" stroke="#0B1120" stroke-width="2" />
+  <circle cx="186" cy="162" r="8" fill="#EC4899" stroke="#0B1120" stroke-width="2" />
+  <circle cx="128" cy="196" r="7" fill="#F59E0B" stroke="#0B1120" stroke-width="2" />
+</svg>

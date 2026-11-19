@@ -1,0 +1,16 @@
+{
+  "name": "marvins-local-memory",
+  "displayName": "Marvin's Local Memory Plugin",
+  "version": "1.0.0",
+  "description": "Zero-Docker, self-healing local AI memory stack: LanceDB hybrid vector/BM25 search, FastEmbed local embeddings, Bi-Temporal Property Graph, warm HTTP daemon, and universal stdio MCP server.",
+  "author": {
+    "name": "Binary Star Homestead"
+  },
+  "repository": "https://github.com/aprylnators/marvins-local-memory",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Run a memory health diagnostic and show my live state dashboard",
+    "Remember my current project phase and next milestone",
+    "Search our past history for preferences and recent decisions"
+  ]
+}
