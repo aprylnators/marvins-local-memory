@@ -43,10 +43,11 @@ Format output strictly as a raw JSON array (no markdown fences):
 class DreamEngine:
     def __init__(self, cli_cmd: Optional[str] = None):
         env_cmd = os.getenv("COMPANION_DREAM_CMD", "").strip()
+        is_posix = os.name != "nt"
         if cli_cmd:
-            self.cmd = shlex.split(cli_cmd)
+            self.cmd = shlex.split(cli_cmd, posix=is_posix)
         elif env_cmd:
-            self.cmd = shlex.split(env_cmd)
+            self.cmd = shlex.split(env_cmd, posix=is_posix)
         else:
             agy_bin = shutil.which("agy")
             if not agy_bin and os.name == "nt":
@@ -75,12 +76,24 @@ class DreamEngine:
         }
         self.state_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    def collect_recent_turns(self, min_epoch: float = 0.0) -> List[Dict[str, Any]]:
+    def collect_recent_turns(
+        self,
+        min_epoch: float = 0.0,
+        include_global_transcripts: Optional[bool] = None,
+    ) -> List[Dict[str, Any]]:
         turns: List[Dict[str, Any]] = []
 
-        # 1. Antigravity transcripts (if running on Antigravity)
+        scan_global = (
+            include_global_transcripts is True
+            or (
+                include_global_transcripts is None
+                and os.getenv("COMPANION_DREAM_SCAN_GLOBAL_TRANSCRIPTS", "").strip().lower() in ("1", "true", "yes")
+            )
+        )
+
+        # 1. Antigravity transcripts (opt-in only, to avoid cross-workspace leaks in new projects)
         brain_dir = Path.home() / ".gemini" / "antigravity" / "brain"
-        if brain_dir.exists():
+        if scan_global and brain_dir.exists():
             for log_file in brain_dir.glob("*/.system_generated/logs/transcript.jsonl"):
                 try:
                     with open(log_file, "r", encoding="utf-8") as f:
@@ -184,9 +197,18 @@ class DreamEngine:
             print(f"[DreamEngine] Episode synthesis skipped: {e}")
         return []
 
-    def run_consolidation(self, engine: LanceMemoryEngine, since_epoch: Optional[float] = None, retention_days: int = 14) -> Dict[str, Any]:
+    def run_consolidation(
+        self,
+        engine: LanceMemoryEngine,
+        since_epoch: Optional[float] = None,
+        retention_days: int = 14,
+        include_global_transcripts: Optional[bool] = None,
+    ) -> Dict[str, Any]:
         min_ep = self.load_last_epoch() if since_epoch is None else since_epoch
-        turns = self.collect_recent_turns(min_epoch=min_ep)
+        turns = self.collect_recent_turns(
+            min_epoch=min_ep,
+            include_global_transcripts=include_global_transcripts,
+        )
         if not turns:
             return {"turns": 0, "cards": 0, "journal": None}
 

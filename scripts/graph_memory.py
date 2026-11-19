@@ -7,7 +7,9 @@ and deterministic markdown dossier synchronization.
 
 import json
 import math
+import os
 import re
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +18,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import pyarrow as pa
 
 from paths import get_dossiers_dir, get_graph_path
+
+_SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_:./-]{1,128}$")
+_SAFE_RECORD_ID_RE = re.compile(r"^[a-zA-Z0-9_:./-]{1,320}$")
 
 
 def _now_ts() -> float:
@@ -101,9 +106,26 @@ class BiTemporalGraphEngine:
             "nodes": self.nodes,
             "edges": self.edges,
         }
-        tmp_path = self.graph_path.with_suffix(".tmp")
-        tmp_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-        tmp_path.replace(self.graph_path)
+        tmp_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self.graph_path.parent,
+                prefix=".property_graph_",
+                suffix=".tmp",
+                delete=False,
+            ) as tf:
+                tmp_name = tf.name
+                tf.write(json.dumps(payload, indent=2, ensure_ascii=False))
+            os.replace(tmp_name, self.graph_path)
+            tmp_name = None
+        finally:
+            if tmp_name and os.path.exists(tmp_name):
+                try:
+                    os.unlink(tmp_name)
+                except Exception:
+                    pass
         try:
             self._last_json_mtime = self.graph_path.stat().st_mtime
         except Exception:
@@ -164,11 +186,11 @@ class BiTemporalGraphEngine:
             return
         try:
             nid = node["id"]
-            safe_id = nid.replace("'", "''")
-            try:
-                self.nodes_table.delete(f"id = '{safe_id}'")
-            except Exception:
-                pass
+            if _SAFE_RECORD_ID_RE.match(nid):
+                try:
+                    self.nodes_table.delete(f"id = '{nid}'")
+                except Exception:
+                    pass
             vec = node.get("vector")
             if not vec or len(vec) != self.embedding_dim:
                 embed_str = f"{node['name']} ({node['category']}) - Phase: {node.get('current_phase', '')}. {node.get('current_state_summary', '')} Next: {node.get('next_step', '')}"
@@ -195,11 +217,11 @@ class BiTemporalGraphEngine:
             return
         try:
             eid = edge["id"]
-            safe_id = eid.replace("'", "''")
-            try:
-                self.edges_table.delete(f"id = '{safe_id}'")
-            except Exception:
-                pass
+            if _SAFE_RECORD_ID_RE.match(eid):
+                try:
+                    self.edges_table.delete(f"id = '{eid}'")
+                except Exception:
+                    pass
             vec = edge.get("vector")
             if not vec or len(vec) != self.embedding_dim:
                 embed_str = f"{edge['source_id']} {edge['relation']} {edge['target_id']}: {edge.get('context', '')}"
@@ -240,6 +262,8 @@ class BiTemporalGraphEngine:
         op = operation.strip().upper()
         now = timestamp or _now_ts()
         entity_id = entity_id.strip().lower()
+        if not _SAFE_ID_RE.match(entity_id):
+            raise ValueError("Invalid entity_id: allowed characters are letters, numbers, '_', ':', '.', '/', '-' (1-128 chars)")
 
         if op == "NOOP":
             return {"operation": "NOOP", "entity_id": entity_id, "node": self.nodes.get(entity_id)}
@@ -353,6 +377,8 @@ class BiTemporalGraphEngine:
                 if not t_id:
                     continue
                 t_id = t_id.strip().lower()
+                if not _SAFE_ID_RE.match(t_id):
+                    raise ValueError("Invalid relation target_id")
                 r_ctx = rel.get("context", f"{node['name']} --[{r_type}]--> {t_id}")
                 r_active = rel.get("active", True)
                 r_valid = rel.get("valid_at", now)
@@ -505,7 +531,8 @@ class BiTemporalGraphEngine:
         collected_historical_edges: List[Dict[str, Any]] = []
         seen_edge_ids: Set[str] = set()
 
-        for _ in range(max(1, hops)):
+        hops = max(1, min(int(hops), 3))
+        for _ in range(hops):
             next_frontier: Set[str] = set()
             for edge in self.edges:
                 src = edge["source_id"]

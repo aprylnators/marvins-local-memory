@@ -22,6 +22,8 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from paths import get_daemon_port
 
+MAX_RPC_CONTENT_LENGTH = 10 * 1024 * 1024
+
 TOOLS = [
     {
         "name": "deep_recall",
@@ -133,18 +135,21 @@ def handle_tool_call(name: str, args: Dict[str, Any]) -> Dict[str, Any]:
     base = f"http://127.0.0.1:{port}"
 
     if name == "deep_recall":
+        limit = max(1, min(int(args.get("limit", 8)), 50))
+        hops = max(1, min(int(args.get("hops", 2)), 3))
         params = urllib.parse.urlencode({
             "query": args.get("query", ""),
-            "limit": int(args.get("limit", 8)),
-            "hops": int(args.get("hops", 2)),
+            "limit": limit,
+            "hops": hops,
             "include_historical": str(bool(args.get("include_historical", False))).lower(),
         })
         return _http_json(f"{base}/api/memory/deep_recall?{params}")
 
     if name == "search_memory":
+        limit = max(1, min(int(args.get("limit", 8)), 50))
         payload = {
             "query": args.get("query", ""),
-            "limit": int(args.get("limit", 8)),
+            "limit": limit,
             "mode": args.get("mode", "hybrid"),
         }
         if args.get("category"):
@@ -175,6 +180,8 @@ def read_rpc_message() -> Tuple[Optional[Dict[str, Any]], str]:
             continue
         if line.lower().startswith("content-length:"):
             length = int(line.split(":", 1)[1].strip())
+            if not (0 <= length <= MAX_RPC_CONTENT_LENGTH):
+                raise ValueError(f"Content-Length out of bounds: {length}")
             while True:
                 hdr = stream.readline()
                 if not hdr or hdr in (b"\r\n", b"\n"):
@@ -198,9 +205,25 @@ def write_rpc_message(obj: Dict[str, Any], framing: str):
 
 def main():
     while True:
-        msg, framing = read_rpc_message()
+        try:
+            msg, framing = read_rpc_message()
+        except (json.JSONDecodeError, ValueError) as e:
+            write_rpc_message({
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32700, "message": f"Parse error: {e}"},
+            }, "jsonl")
+            continue
+
         if msg is None:
             break
+        if not isinstance(msg, dict):
+            write_rpc_message({
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32600, "message": "Invalid Request: expected JSON object"},
+            }, framing)
+            continue
         req_id = msg.get("id")
         method = msg.get("method", "")
         params = msg.get("params") or {}

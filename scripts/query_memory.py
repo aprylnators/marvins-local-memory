@@ -73,6 +73,16 @@ def main():
     parser.add_argument("--compact", action="store_true", help="Compact and prune old LanceDB fragments")
     parser.add_argument("--reindex-fts", action="store_true", help="Rebuild BM25 FTS index")
     parser.add_argument("--dream", action="store_true", help="Run zero-API-key Dream Consolidation")
+    parser.add_argument(
+        "--include-global-transcripts",
+        action="store_true",
+        help="Opt-in: also scan ~/.gemini/antigravity/brain transcripts during --dream",
+    )
+    parser.add_argument(
+        "--all-history",
+        action="store_true",
+        help="Re-process all eligible notes/transcripts from epoch 0 during --dream",
+    )
     parser.add_argument("--diagnose", action="store_true", help="Run full health diagnostic")
 
     args = parser.parse_args()
@@ -108,7 +118,11 @@ def main():
         return
 
     if args.dream:
-        res = DreamEngine().run_consolidation(engine)
+        res = DreamEngine().run_consolidation(
+            engine,
+            since_epoch=0.0 if args.all_history else None,
+            include_global_transcripts=True if args.include_global_transcripts else None,
+        )
         print(f"Dream consolidation finished: {res}")
         return
 

@@ -21,6 +21,43 @@ from fastembed import TextEmbedding
 from graph_memory import BiTemporalGraphEngine
 from paths import get_dossiers_dir, get_graph_path, get_lancedb_dir
 
+_SAFE_CATEGORY_RE = re.compile(r"^[a-zA-Z0-9_:-]{1,64}$")
+_MAX_INDEX_FILE_BYTES = 10 * 1024 * 1024
+
+
+def _chunk_text_block(block: str, max_chars: int = 1800) -> List[str]:
+    """Split oversized markdown/text blocks cleanly at paragraph boundaries."""
+    text = block.strip()
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks: List[str] = []
+    cur = ""
+    for para in text.split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        if len(para) > max_chars:
+            if cur:
+                chunks.append(cur)
+                cur = ""
+            for i in range(0, len(para), max_chars):
+                piece = para[i : i + max_chars].strip()
+                if piece:
+                    chunks.append(piece)
+        elif not cur:
+            cur = para
+        elif len(cur) + 2 + len(para) <= max_chars:
+            cur = f"{cur}\n\n{para}"
+        else:
+            chunks.append(cur)
+            cur = para
+    if cur:
+        chunks.append(cur)
+    return chunks
+
 
 class LanceMemoryEngine:
     """
@@ -112,12 +149,18 @@ class LanceMemoryEngine:
         p = Path(file_path)
         if not p.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
+        if p.stat().st_size > _MAX_INDEX_FILE_BYTES:
+            raise ValueError(f"File exceeds {_MAX_INDEX_FILE_BYTES // (1024 * 1024)} MB limit: {p.name}")
 
-        content = p.read_text(encoding="utf-8")
+        content = p.read_text(encoding="utf-8", errors="replace")
         sections = re.split(r"\n(?=#{1,3}\s)", content)
-        chunks = [s.strip() for s in sections if len(s.strip()) > 20]
+        chunks: List[str] = []
+        for s in sections:
+            for sub in _chunk_text_block(s, max_chars=1800):
+                if len(sub.strip()) > 20:
+                    chunks.append(sub.strip())
         if not chunks and content.strip():
-            chunks = [content.strip()]
+            chunks = [content.strip()[:1800]]
         if not chunks:
             return 0
 
@@ -132,7 +175,7 @@ class LanceMemoryEngine:
                 "category": category,
                 "source": p.name,
                 "timestamp": now,
-                "metadata_json": json.dumps({"file_path": str(p)}, ensure_ascii=False),
+                "metadata_json": json.dumps({"file_name": p.name}, ensure_ascii=False),
             }
             for i, (chunk, vec) in enumerate(zip(chunks, vectors))
         ]
@@ -187,6 +230,11 @@ class LanceMemoryEngine:
         if not query_clean:
             return []
 
+        limit = max(1, min(int(limit), 50))
+        if category is not None:
+            if not isinstance(category, str) or not _SAFE_CATEGORY_RE.match(category):
+                raise ValueError("Invalid category filter")
+
         self._refresh_table(force_reopen=False)
         if len(self.table) == 0:
             return []
@@ -213,8 +261,7 @@ class LanceMemoryEngine:
                 sq = self.table.search(qv).limit(candidate_limit)
 
             if category:
-                safe_cat = category.replace("'", "''")
-                sq = sq.where(f"category = '{safe_cat}'")
+                sq = sq.where(f"category = '{category}'")
             return sq.to_list()
 
         try:
@@ -277,6 +324,8 @@ class LanceMemoryEngine:
         hops: int = 2,
         include_historical: bool = False,
     ) -> Dict[str, Any]:
+        limit = max(1, min(int(limit), 50))
+        hops = max(1, min(int(hops), 3))
         t0 = time.time()
         subgraph = self.graph.retrieve_subgraph(
             query=query,

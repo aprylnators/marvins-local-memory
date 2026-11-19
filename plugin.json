@@ -2,7 +2,7 @@
   "name": "marvins-local-memory",
   "displayName": "Marvin's Local Memory Plugin",
   "version": "1.0.0",
-  "description": "Zero-Docker, self-healing local AI memory stack: LanceDB hybrid vector/BM25 search, FastEmbed local embeddings, Bi-Temporal Property Graph, warm HTTP daemon, and universal stdio MCP server.",
+  "description": "Give your AI companion or coding agent a real long-term memory that grows with you. Remembers past chats, bridges the gap between sessions, and delivers snappy local recall — 100% private, with no Docker or API keys.",
   "author": {
     "name": "Binary Star Homestead"
   },

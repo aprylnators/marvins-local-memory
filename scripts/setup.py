@@ -7,11 +7,13 @@ One-Command Cross-Platform Setup for Marvin's Local Memory Plugin.
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
 import time
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -48,6 +50,23 @@ def scaffold_dossiers():
             "- **Active Goals:** *(Record ongoing creative or engineering goals here.)*\n",
             encoding="utf-8",
         )
+
+
+def initialize_dream_state():
+    from paths import get_state_dir
+    state_dir = get_state_dir()
+    state_dir.mkdir(parents=True, exist_ok=True)
+    dream_state_file = state_dir / "last_dream_state.json"
+    if not dream_state_file.exists():
+        now = time.time()
+        now_iso = datetime.now().isoformat()
+        payload = {
+            "last_turn_epoch": now,
+            "last_dream_iso": now_iso,
+            "completed_at": now_iso,
+            "cards_created": 0,
+        }
+        dream_state_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def start_daemon():
@@ -91,6 +110,7 @@ def main():
     from paths import ensure_memory_layout
     root = ensure_memory_layout()
     scaffold_dossiers()
+    initialize_dream_state()
     start_daemon()
     mcp_snippet = {
         "mcpServers": {

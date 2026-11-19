@@ -1,6 +1,6 @@
 ---
 name: marvins-local-memory
-description: Universal zero-Docker long-term memory system combining LanceDB hybrid vector/BM25 search, a Bi-Temporal Property Graph, Living Working Dossiers, a warm local HTTP daemon, and a cross-harness MCP server.
+description: Gives AI companions and coding agents persistent long-term memory that grows across sessions, recalls past chats and preferences fast, and runs 100% locally with zero Docker or API keys via LanceDB, a Bi-Temporal Property Graph, warm HTTP daemon, and cross-harness MCP tools.
 ---
 
 # Marvin's Local Memory Plugin
@@ -44,3 +44,4 @@ python scripts/query_memory.py --dream
 - `COMPANION_MEMORY_DIR` — Override memory storage folder (defaults to `./memory`).
 - `COMPANION_MEMORY_PORT` — Override warm daemon port (defaults to `8765`).
 - `COMPANION_DREAM_CMD` — Override CLI command for Dream Consolidation (defaults to `agy --disable-slash-commands -p`; can be set to `claude -p` or a local `ollama run ...` command).
+- `COMPANION_DREAM_SCAN_GLOBAL_TRANSCRIPTS` — Set to `1` to opt into scanning `~/.gemini/antigravity/brain` transcripts during `--dream` (off by default; project-local `memory/inbox/*.md` is always scanned).
